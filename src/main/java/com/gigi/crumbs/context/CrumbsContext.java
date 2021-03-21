@@ -2,40 +2,88 @@ package com.gigi.crumbs.context;
 
 import com.gigi.crumbs.annotation.Crumb;
 import com.gigi.crumbs.annotation.CrumbRef;
+import com.gigi.crumbs.annotation.Property;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URL;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
 public class CrumbsContext {
 
     private final Map<Class<?>, Object> crumbs = new HashMap<>();
+    private Properties properties;
 
     public void initialize(Class<?> clazz) {
-
+        loadProperties();
         loadCrumbs(clazz);
         injectReferences();
+        if (properties != null) {
+            injectProperties();
+        }
         System.out.println("[CrumbsContext] Initialized");
     }
 
-    public Object getCrumb(Class<?> clazz) {
-        return crumbs.get(clazz);
+    private void injectProperties() {
+        crumbs.values().forEach(crumb -> {
+            Arrays.stream(crumb.getClass().getDeclaredFields()).forEach(field -> {
+                Arrays.stream(field.getAnnotations())
+                        .filter(annotation -> annotation.annotationType().equals(Property.class))
+                        .findFirst()
+                        .ifPresent(annotation -> {
+                            field.setAccessible(true);
+                            Property property = field.getAnnotation(Property.class);
+                            String propertyKey = property.value();
+                            String value = properties.getProperty(propertyKey);
+                            try {
+                                Class type = field.getType();
+                                if (type.equals(String.class)) {
+                                    field.set(crumb, value);
+                                } else if (type.equals(Integer.class)) {
+                                    Integer intValue = Integer.parseInt(value);
+                                    field.set(crumb, intValue);
+                                } else if (type.equals(Long.class)) {
+                                    Long longValue = Long.parseLong(value);
+                                    field.set(crumb, longValue);
+                                } else if (type.equals(Double.class)) {
+                                    Double doubleValue = Double.parseDouble(value);
+                                    field.set(crumb, doubleValue);
+                                } else if (type.equals(Boolean.class)) {
+                                    Boolean boolValue = Boolean.parseBoolean(value);
+                                    field.set(crumb, boolValue);
+                                } else if (type.equals(Duration.class)) {
+                                    Duration duration = Duration.parse(value);
+                                    field.set(crumb, duration);
+                                } else {
+                                    throw new RuntimeException("Could not inject value in field " + field.getName() +
+                                            " of type " + type.getCanonicalName() + " in class "
+                                            + crumb.getClass().getCanonicalName() + ". Unsupported property type");
+                                }
+                                field.setAccessible(false);
+                            } catch (IllegalAccessException e) {
+                                throw new RuntimeException("Unable to set field value due to exception", e);
+                            }
+                        });
+            });
+        });
+    }
+
+    public <T> T getCrumb(Class<T> clazz) {
+        return (T) crumbs.get(clazz);
     }
 
     private void injectReferences() {
         crumbs.values().forEach(crumb -> {
-            Class<?> clazz = crumb.getClass();
-            Arrays.stream(clazz.getDeclaredFields()).forEach(field -> {
+            Arrays.stream(crumb.getClass().getDeclaredFields()).forEach(field -> {
                 if (Arrays.stream(field.getAnnotations())
                         .anyMatch(annotation -> annotation.annotationType().equals(CrumbRef.class))) {
                     field.setAccessible(true);
                     try {
                         Object value = crumbs.get(field.getType());
                         field.set(crumb, value);
-                        System.out.println(crumb);
+                        field.setAccessible(false);
                     } catch (IllegalAccessException e) {
                         throw new RuntimeException("Unable to set field value due to exception", e);
                     }
@@ -49,7 +97,7 @@ public class CrumbsContext {
 
         Set<Class<?>> scannedCrumbs;
         try {
-            scannedCrumbs = Arrays.stream(getClasses(packageName))
+            scannedCrumbs = Arrays.stream(Scanner.getClasses(packageName))
                     .filter(scannedClazz -> Arrays.stream(scannedClazz.getAnnotations())
                             .anyMatch(annotation -> annotation.annotationType().equals(Crumb.class)))
                     .collect(Collectors.toSet());
@@ -66,54 +114,15 @@ public class CrumbsContext {
         });
     }
 
-    /**
-     * Scans all classes accessible from the context class loader which belong to the given package and subpackages.
-     *
-     * @param packageName The base package
-     * @return The classes
-     * @throws ClassNotFoundException
-     * @throws IOException
-     */
-    private static Class<?>[] getClasses(String packageName)
-            throws ClassNotFoundException, IOException {
-        ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-        assert classLoader != null;
-        String path = packageName.replace('.', '/');
-        Enumeration<URL> resources = classLoader.getResources(path);
-        List<File> dirs = new ArrayList<File>();
-        while (resources.hasMoreElements()) {
-            URL resource = resources.nextElement();
-            dirs.add(new File(resource.getFile()));
-        }
-        ArrayList<Class<?>> classes = new ArrayList<>();
-        for (File directory : dirs) {
-            classes.addAll(findClasses(directory, packageName));
-        }
-        return classes.toArray(new Class[classes.size()]);
-    }
-
-    /**
-     * Recursive method used to find all classes in a given directory and subdirs.
-     *
-     * @param directory   The base directory
-     * @param packageName The package name for classes found inside the base directory
-     * @return The classes
-     * @throws ClassNotFoundException
-     */
-    private static List<Class<?>> findClasses(File directory, String packageName) throws ClassNotFoundException {
-        List<Class<?>> classes = new ArrayList<>();
-        if (!directory.exists()) {
-            return classes;
-        }
-        File[] files = directory.listFiles();
-        for (File file : files) {
-            if (file.isDirectory()) {
-                assert !file.getName().contains(".");
-                classes.addAll(findClasses(file, packageName + "." + file.getName()));
-            } else if (file.getName().endsWith(".class")) {
-                classes.add(Class.forName(packageName + '.' + file.getName().substring(0, file.getName().length() - 6)));
+    private void loadProperties() {
+        this.properties = new Properties();
+        InputStream propertiesStream = this.getClass().getClassLoader().getResourceAsStream("crumbs.properties");
+        try {
+            if(propertiesStream != null) {
+                properties.load(propertiesStream);
             }
+        } catch (IOException e) {
+
         }
-        return classes;
     }
 }

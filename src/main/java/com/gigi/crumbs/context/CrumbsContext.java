@@ -3,6 +3,7 @@ package com.gigi.crumbs.context;
 import com.gigi.crumbs.annotation.Crumb;
 import com.gigi.crumbs.annotation.CrumbRef;
 import com.gigi.crumbs.annotation.Property;
+import com.gigi.crumbs.exception.CrumbsInitException;
 import com.gigi.crumbs.logging.Logger;
 
 import java.io.IOException;
@@ -62,13 +63,13 @@ public class CrumbsContext {
                                     Duration duration = Duration.parse(value);
                                     field.set(crumb, duration);
                                 } else {
-                                    throw new RuntimeException("Could not inject value in field " + field.getName() +
+                                    throw new CrumbsInitException("Could not inject value in field " + field.getName() +
                                             " of type " + type.getCanonicalName() + " in class "
                                             + crumb.getClass().getCanonicalName() + ". Unsupported property type");
                                 }
                                 field.setAccessible(false);
                             } catch (IllegalAccessException e) {
-                                throw new RuntimeException("Unable to set field value due to exception", e);
+                                throw new CrumbsInitException("Unable to set field value due to exception", e);
                             }
                         });
             });
@@ -87,10 +88,15 @@ public class CrumbsContext {
                     field.setAccessible(true);
                     try {
                         Object value = crumbs.get(field.getType());
+                        if(value == null) {
+                            throw new CrumbsInitException("Could not inject reference in object of type "
+                                    + crumb.getClass().getCanonicalName() +
+                                    ". No Crumbs of type " + field.getType().getCanonicalName() + " found. ");
+                        }
                         field.set(crumb, value);
                         field.setAccessible(false);
                     } catch (IllegalAccessException e) {
-                        throw new RuntimeException("Unable to set field value due to exception", e);
+                        throw new CrumbsInitException("Unable to set field value due to exception", e);
                     }
                 }
             });
@@ -107,14 +113,14 @@ public class CrumbsContext {
                             .anyMatch(annotation -> annotation.annotationType().equals(Crumb.class)))
                     .collect(Collectors.toSet());
         } catch (ClassNotFoundException | IOException e) {
-            throw new RuntimeException("Error occurred on load classes", e);
+            throw new CrumbsInitException("Error occurred on load classes", e);
         }
 
         scannedCrumbs.forEach(crumbClass -> {
             try {
                 crumbs.put(crumbClass, crumbClass.getDeclaredConstructor().newInstance());
             } catch (InstantiationException | IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-                throw new RuntimeException("A fatal error occurred on class instantiation", e);
+                throw new CrumbsInitException("A fatal error occurred on class instantiation", e);
             }
         });
     }
@@ -123,6 +129,7 @@ public class CrumbsContext {
         this.properties = new Properties();
         InputStream propertiesStream = this.getClass().getClassLoader().getResourceAsStream("crumbs.properties");
         try {
+            LOGGER.debug("Found crumbs.properties, loading config");
             if(propertiesStream != null) {
                 properties.load(propertiesStream);
             }

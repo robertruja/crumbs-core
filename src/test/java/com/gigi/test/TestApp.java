@@ -22,9 +22,9 @@ public class TestApp {
 
     @Test
     public void shouldInjectProperties() {
-        //CrumbsContext context = CrumbsApp.run(TestApp.class);
+        CrumbsContext context = CrumbsApp.run(TestApp.class);
 
-        //CrumbWithProperties crumbWithProperties = context.getCrumb(CrumbWithProperties.class);
+        CrumbWithProperties crumbWithProperties = context.getCrumb(CrumbWithProperties.class);
 
         try {
             throw new IllegalArgumentException("Some error");
@@ -34,11 +34,11 @@ public class TestApp {
 
         logger.info("Something went wrong first {}, second {}, third missing {}", 1, 2, "aaa");
 
-//        logger.info(crumbWithProperties.getSomeString());
-//        logger.warn(crumbWithProperties.getSomeBoolean());
-//        logger.error(crumbWithProperties.getSomeDouble());
-//        logger.info(crumbWithProperties.getSomeDuration());
-//        logger.info(crumbWithProperties.getSomeLong());
+        logger.info(crumbWithProperties.getSomeString());
+        logger.warn(crumbWithProperties.getSomeBoolean());
+        logger.error(crumbWithProperties.getSomeDouble());
+        logger.info(crumbWithProperties.getSomeDuration());
+        logger.info(crumbWithProperties.getSomeLong());
         logger.debug("Should not be visible");
     }
 }

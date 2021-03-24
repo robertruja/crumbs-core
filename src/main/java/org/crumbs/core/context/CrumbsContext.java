@@ -67,19 +67,19 @@ public class CrumbsContext {
                             if (type.equals(String.class)) {
                                 field.set(crumb, value);
                             } else if (type.equals(Integer.class)) {
-                                Integer intValue = Integer.parseInt(value);
+                                Integer intValue = value == null ? null : Integer.parseInt(value);
                                 field.set(crumb, intValue);
                             } else if (type.equals(Long.class)) {
-                                Long longValue = Long.parseLong(value);
+                                Long longValue = value == null ? null : Long.parseLong(value);
                                 field.set(crumb, longValue);
                             } else if (type.equals(Double.class)) {
-                                Double doubleValue = Double.parseDouble(value);
+                                Double doubleValue = value == null ? null : Double.parseDouble(value);
                                 field.set(crumb, doubleValue);
                             } else if (type.equals(Boolean.class)) {
-                                Boolean boolValue = Boolean.parseBoolean(value);
+                                Boolean boolValue = value == null ? null : Boolean.parseBoolean(value);
                                 field.set(crumb, boolValue);
                             } else if (type.equals(Duration.class)) {
-                                Duration duration = Duration.parse(value);
+                                Duration duration = value == null ? null : Duration.parse(value);
                                 field.set(crumb, duration);
                             } else {
                                 throw new CrumbsInitException("Could not inject value in field " + field.getName() +

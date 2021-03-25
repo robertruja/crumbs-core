@@ -3,6 +3,7 @@ package org.crumbs.core.logging;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 
 public class Logger {
@@ -11,11 +12,20 @@ public class Logger {
     private static final String PATTERN = "%T [%L] %C - %M";
 
     private static Level level = Level.valueOf(System.getProperty("log.level", "INFO"));
+    private static String packages = System.getProperty("log.packages", "");
+
     private Class<?> clazz;
     private Date date = new Date();
 
+    private boolean active = true;
+
     private <T> Logger(Class<T> clazz) {
         this.clazz = clazz;
+        String packageName = clazz.getPackage().getName();
+        if(!packages.isEmpty()) {
+            active = Arrays.stream(packages.split(","))
+                    .anyMatch(packageName::startsWith);
+        }
     }
 
     public static <U> Logger getLogger(Class<U> clazz) {
@@ -63,7 +73,7 @@ public class Logger {
     }
 
     private void log(Level level, String message, Object... args) {
-        if(level.getOrdinal() <  Logger.level.getOrdinal()) {
+        if(!active || level.getOrdinal() <  Logger.level.getOrdinal()) {
             return;
         }
         date.setTime(System.currentTimeMillis());

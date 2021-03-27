@@ -19,7 +19,7 @@ public class ConfigLoader {
         InputStream propertiesStream = ConfigLoader.class.getClassLoader().getResourceAsStream("crumbs.properties");
         try {
             LOGGER.info("Found crumbs.properties, loading config");
-            if(propertiesStream != null) {
+            if (propertiesStream != null) {
                 properties.load(propertiesStream);
                 Map<String, String> propertiesMap = properties.keySet().stream()
                         .map(Object::toString)
@@ -34,23 +34,22 @@ public class ConfigLoader {
     }
 
     private static Map<String, String> replaceValues(Map<String, String> propertyMap) {
-        Map<String, String> replaced = new HashMap<>();
-        propertyMap.entrySet().stream()
-                .forEach(entry -> {
-                    String propertyKey = entry.getKey();
-                    String propertyValue = entry.getValue();
-                    if(propertyValue.contains("${") &&
+        Map<String, String> replaced = propertyMap.keySet().stream()
+                .collect(Collectors.toMap(key -> key, key -> System.getProperty(key, propertyMap.get(key))));
+        return replaced.keySet()
+                .stream()
+                .collect(Collectors.toMap(key -> key, propertyKey -> {
+                    String propertyValue = replaced.get(propertyKey);
+                    if (propertyValue.contains("${") &&
                             propertyValue.substring(propertyValue.indexOf("${")).contains("}")) {
                         int start = propertyValue.indexOf("${");
                         int end = propertyValue.indexOf("}");
                         String prefix = propertyValue.substring(0, start);
                         String ref = propertyValue.substring(start + 2, end);
                         String suffix = propertyValue.substring(end + 1);
-                        propertyValue = prefix + propertyMap.get(ref) + suffix;
+                        propertyValue = prefix + replaced.get(ref) + suffix;
                     }
-                    propertyValue = System.getProperty(propertyKey, propertyValue);
-                    replaced.put(propertyKey, propertyValue);
-                });
-        return replaced;
+                    return propertyValue;
+                }));
     }
 }

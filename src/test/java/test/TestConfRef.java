@@ -14,4 +14,13 @@ public class TestConfRef {
 
         Assert.assertEquals("prefix_some-test_suffix", props.get("test.ref"));
     }
+
+    @Test
+    public void shouldReplacePropFromEnv() {
+        System.setProperty("test.some", "sys-some-test");
+
+        Map<String, String> props = ConfigLoader.loadProperties();
+
+        Assert.assertEquals("prefix_sys-some-test_suffix", props.get("test.ref"));
+    }
 }

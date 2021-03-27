@@ -7,8 +7,6 @@ import org.crumbs.core.annotation.CrumbInit;
 import org.crumbs.core.annotation.CrumbRef;
 import org.crumbs.core.annotation.Property;
 
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
 import java.util.*;
@@ -19,12 +17,12 @@ public class CrumbsContext {
     private static final Logger LOGGER = Logger.getLogger(CrumbsContext.class);
 
     private final Map<Class<?>, Object> crumbs = new HashMap<>();
-    private Properties properties;
+    private Map<String, String> properties;
 
     void initialize(Class<?> clazz) throws Exception {
         LOGGER.info("Starting Crumbs Context ...");
         long start = System.currentTimeMillis();
-        loadProperties();
+        properties = ConfigLoader.loadProperties();
         loadCrumbs("org.crumbs");
         loadCrumbs(clazz);
         injectReferences();
@@ -61,8 +59,7 @@ public class CrumbsContext {
                         field.setAccessible(true);
                         Property property = field.getAnnotation(Property.class);
                         String propertyKey = property.value();
-                        String value = properties.getProperty(propertyKey);
-                        value = System.getProperty(propertyKey, value);
+                        String value = properties.get(propertyKey);
                         try {
                             Class type = field.getType();
                             if (type.equals(String.class)) {
@@ -145,18 +142,5 @@ public class CrumbsContext {
                 throw new CrumbsInitException("A fatal error occurred on class instantiation", e);
             }
         });
-    }
-
-    private void loadProperties() {
-        this.properties = new Properties();
-        InputStream propertiesStream = this.getClass().getClassLoader().getResourceAsStream("crumbs.properties");
-        try {
-            LOGGER.debug("Found crumbs.properties, loading config");
-            if(propertiesStream != null) {
-                properties.load(propertiesStream);
-            }
-        } catch (IOException e) {
-            LOGGER.warn("No crumbs properties found in classpath");
-        }
     }
 }

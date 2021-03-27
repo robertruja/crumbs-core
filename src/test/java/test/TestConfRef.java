@@ -12,6 +12,6 @@ public class TestConfRef {
     public void TestConfRef() {
         Map<String, String> props = ConfigLoader.loadProperties();
 
-        Assert.assertEquals("some-test", props.get("test.ref"));
+        Assert.assertEquals("prefix_some-test_suffix", props.get("test.ref"));
     }
 }

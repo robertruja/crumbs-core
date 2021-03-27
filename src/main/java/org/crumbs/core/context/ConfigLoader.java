@@ -39,10 +39,14 @@ public class ConfigLoader {
                 .forEach(entry -> {
                     String propertyKey = entry.getKey();
                     String propertyValue = entry.getValue();
-                    if(propertyValue.startsWith("${") &&
-                            propertyValue.endsWith("}")) {
-                        String ref = propertyValue.substring(2, propertyValue.length() - 1);
-                        propertyValue = propertyMap.get(ref);
+                    if(propertyValue.contains("${") &&
+                            propertyValue.substring(propertyValue.indexOf("${")).contains("}")) {
+                        int start = propertyValue.indexOf("${");
+                        int end = propertyValue.indexOf("}");
+                        String prefix = propertyValue.substring(0, start);
+                        String ref = propertyValue.substring(start + 2, end);
+                        String suffix = propertyValue.substring(end + 1);
+                        propertyValue = prefix + propertyMap.get(ref) + suffix;
                     }
                     propertyValue = System.getProperty(propertyKey, propertyValue);
                     replaced.put(propertyKey, propertyValue);
